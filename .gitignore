@@ -12,6 +12,7 @@ CMakeFiles/
 Makefile
 asd
 CMakeCache.txt
+example/node_modules/
 
 cmake-build-debug/
 .idea/

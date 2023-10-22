@@ -6,6 +6,7 @@
 #include "parson.h"
 #include <curl/curl.h>
 #include "packages.h"
+#include <pthread.h>
 
 struct ResponseData {
     char *data;
@@ -52,10 +53,16 @@ char* make_request(char* url) {
 
 char* get_package_text(char* package_name) {
     char* url = "https://registry.npmjs.org/";
-    char* full_url = malloc(strlen(url) + strlen(package_name) + 1);
+    char* full_url = malloc(strlen(url) + strlen(package_name) + 1 + strlen("/latest"));
     strcpy(full_url, url);
     strcat(full_url, package_name);
-    return make_request(full_url);
+    strcat(full_url, "/latest");
+
+    const char* package_text = make_request(full_url);
+
+    free(full_url);
+
+    return package_text;
 }
 
 JSON_Object *get_package_json(char* package_text) {
@@ -65,36 +72,14 @@ JSON_Object *get_package_json(char* package_text) {
     return package_json_object;
 }
 
-char* get_latest_version(JSON_Object *package_json_object) {
-    JSON_Object *dist_tags = json_object_dotget_object(package_json_object, "dist-tags");
-    const char* latest = json_object_dotget_string(dist_tags, "latest");
-
-    return latest;
-}
-
 char* get_latest_download_link(JSON_Object *package_json_object) {
-    char* latest = get_latest_version(package_json_object);
-
-    if (latest == NULL) {
-        printf("Error getting latest version\n");
-        return "";
-    }
-
-    JSON_Object *versions;
-    versions = json_object_dotget_object(package_json_object, "versions");
-
-    JSON_Object *latest_version;
-    latest_version = json_object_get_object(versions, latest);
-
     JSON_Object *dist;
-    dist = json_value_get_object(json_object_get_value(latest_version, "dist"));
+    dist = json_value_get_object(json_object_get_value(package_json_object, "dist"));
 
     const char* tarball = json_object_get_string(dist, "tarball");
 
-    free(latest);
-
     if (tarball == NULL) {
-        printf("Error getting tarball\n");
+        printf("Error getting tarball %s\n", tarball);
         return "";
     }
 
@@ -135,6 +120,8 @@ JSON_Object *get_dependencies() {
 
 // get all dependencies from package.json
 JSON_Object *get_all_dependencies() {
+    printf("Getting all dependencies...\n");
+
     JSON_Object *dependencies;
     dependencies = get_dependencies();
     JSON_Object *dev_dependencies;
@@ -161,11 +148,50 @@ JSON_Object *get_all_dependencies() {
     return dependencies;
 }
 
+void create_package_folder(char *package_name) {
+    char* command = malloc(strlen("mkdir -p node_modules/") + strlen(package_name) + 1);
+    strcpy(command, "mkdir -p node_modules/");
+    strcat(command, package_name);
+    system(command);
+    free(command);
+}
+
+// command injection
 void install_dependencies(JSON_Object *dependencies) {
+    printf("Installing dependencies...\n");
+
     for (int i = 0; i < json_object_get_count(dependencies); i++) {
         const char* dependency = json_object_get_name(dependencies, i);
         const char* download_link = json_object_get_string(dependencies, dependency);
 
-        
+        if (download_link == "") {
+            continue;
+        }
+
+        char* command = malloc(strlen("curl -L -o node_modules/") + strlen(dependency) + strlen(" ") + strlen(download_link) + 1);
+        strcpy(command, "curl -L -o node_modules/");
+        strcat(command, dependency);
+        strcat(command, ".tgz ");
+        strcat(command, download_link);
+        system(command);
+        free(command);
+
+        create_package_folder(dependency);
+
+        command = malloc(strlen("tar -xzvf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 1);
+        strcpy(command, "tar -xzvf node_modules/");
+        strcat(command, dependency);
+        strcat(command, ".tgz -C node_modules/");
+        strcat(command, dependency);
+        strcat(command, " --strip-components=1");
+        system(command);
+        free(command);
+
+        command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 1);
+        strcpy(command, "rm node_modules/");
+        strcat(command, dependency);
+        strcat(command, ".tgz");
+        system(command);
+        free(command);
     }
 }
