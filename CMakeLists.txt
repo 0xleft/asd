@@ -12,4 +12,6 @@ add_executable(asd main.c
 )
 
 find_package(CURL REQUIRED)
+find_package(Threads REQUIRED)
 target_link_libraries(asd CURL::libcurl)
+target_link_libraries(asd pthread)

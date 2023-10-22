@@ -13,6 +13,11 @@ struct ResponseData {
     size_t size;
 };
 
+struct DependencyInfo {
+    char *name;
+    char *url;
+};
+
 size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t total_size = size * nmemb;
     struct ResponseData *response = (struct ResponseData *)userp;
@@ -92,9 +97,9 @@ void create_node_folder() {
 }
 
 // parse package.json in main directory
-JSON_Object *parse_package_json() {
+JSON_Object *parse_package_json(char* path) {
     JSON_Value *package_json_value;
-    package_json_value = json_parse_file("package.json");
+    package_json_value = json_parse_file(path);
 
     if (package_json_value == NULL) {
         printf("Error parsing package.json\n");
@@ -106,26 +111,26 @@ JSON_Object *parse_package_json() {
     return package_json_object;
 }
 
-JSON_Object *get_dev_dependencies() {
-    JSON_Object *package_json_object = parse_package_json();
+JSON_Object *get_dev_dependencies(char* path) {
+    JSON_Object *package_json_object = parse_package_json(path);
     JSON_Object *dev_dependencies = json_object_dotget_object(package_json_object, "devDependencies");
     return dev_dependencies;
 }
 
-JSON_Object *get_dependencies() {
-    JSON_Object *package_json_object = parse_package_json();
+JSON_Object *get_dependencies(char* path) {
+    JSON_Object *package_json_object = parse_package_json(path);
     JSON_Object *dependencies = json_object_dotget_object(package_json_object, "dependencies");
     return dependencies;
 }
 
 // get all dependencies from package.json
-JSON_Object *get_all_dependencies() {
+JSON_Object *get_all_dependencies(char* path) {
     printf("Getting all dependencies...\n");
 
     JSON_Object *dependencies;
-    dependencies = get_dependencies();
+    dependencies = get_dependencies(path);
     JSON_Object *dev_dependencies;
-    dev_dependencies = get_dev_dependencies();
+    dev_dependencies = get_dev_dependencies(path);
 
     for (int i = 0; i < json_object_get_count(dev_dependencies); i++) {
         const char* dependency = json_object_get_name(dev_dependencies, i);
@@ -156,9 +161,54 @@ void create_package_folder(char *package_name) {
     free(command);
 }
 
+void install_dependency(void *arg) {
+    struct DependencyInfo *info = (struct DependencyInfo *)arg;
+
+    char *dependency = info->name;
+    char *download_link = info->url;
+
+    char* command = malloc(strlen("curl -J -L -o node_modules/") + strlen(dependency) + strlen(" ") + strlen(download_link) + 1);
+    strcpy(command, "curl -J -L -o node_modules/");
+    strcat(command, dependency);
+    strcat(command, ".tgz ");
+    strcat(command, download_link);
+    system(command);
+    free(command);
+
+    create_package_folder(dependency);
+
+    command = malloc(strlen("tar -xzvf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 1);
+    strcpy(command, "tar -xzvf node_modules/");
+    strcat(command, dependency);
+    strcat(command, ".tgz -C node_modules/");
+    strcat(command, dependency);
+    strcat(command, " --strip-components=1");
+    system(command);
+    free(command);
+
+    command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 1);
+    strcpy(command, "rm node_modules/");
+    strcat(command, dependency);
+    strcat(command, ".tgz");
+    system(command);
+    free(command);
+
+    char* package_json_path = malloc(strlen("node_modules/") + strlen(dependency) + strlen("/package.json") + 1);
+    strcpy(package_json_path, "node_modules/");
+    strcat(package_json_path, dependency);
+    strcat(package_json_path, "/package.json");
+
+    JSON_Object *dependencies = get_all_dependencies(package_json_path);
+    install_dependencies(dependencies);
+}
+
 // command injection
 void install_dependencies(JSON_Object *dependencies) {
     printf("Installing dependencies...\n");
+
+    int num_dependencies = json_object_get_count(dependencies);
+    struct DependencyInfo info[num_dependencies];
+    pthread_t thread_ids[num_dependencies];
 
     for (int i = 0; i < json_object_get_count(dependencies); i++) {
         const char* dependency = json_object_get_name(dependencies, i);
@@ -168,30 +218,13 @@ void install_dependencies(JSON_Object *dependencies) {
             continue;
         }
 
-        char* command = malloc(strlen("curl -L -o node_modules/") + strlen(dependency) + strlen(" ") + strlen(download_link) + 1);
-        strcpy(command, "curl -L -o node_modules/");
-        strcat(command, dependency);
-        strcat(command, ".tgz ");
-        strcat(command, download_link);
-        system(command);
-        free(command);
+        info[i].name = (char *)dependency;
+        info[i].url = (char *)download_link;
 
-        create_package_folder(dependency);
+        pthread_create(&thread_ids[i], NULL, install_dependency, &info[i]);
+    }
 
-        command = malloc(strlen("tar -xzvf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 1);
-        strcpy(command, "tar -xzvf node_modules/");
-        strcat(command, dependency);
-        strcat(command, ".tgz -C node_modules/");
-        strcat(command, dependency);
-        strcat(command, " --strip-components=1");
-        system(command);
-        free(command);
-
-        command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 1);
-        strcpy(command, "rm node_modules/");
-        strcat(command, dependency);
-        strcat(command, ".tgz");
-        system(command);
-        free(command);
+    for (int i = 0; i < num_dependencies; i++) {
+        pthread_join(thread_ids[i], NULL);
     }
 }

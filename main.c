@@ -13,8 +13,10 @@ int main(int argc, char *argv[]) {
         printf("Installing...\n");
         create_node_folder();
 
-        JSON_Object *dependencies = get_all_dependencies();
+        JSON_Object *dependencies = get_all_dependencies("package.json");
         install_dependencies(dependencies);
+
+        printf("Done!\n");
 
         return 0;
     }
