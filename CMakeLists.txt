@@ -5,8 +5,8 @@ set(CMAKE_C_STANDARD 11)
 
 
 add_executable(asd main.c
-        requests.c
-        requests.h
+        packages.c
+        packages.h
         parson.c
         parson.h
 )

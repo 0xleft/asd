@@ -5,4 +5,6 @@ make
 
 echo "Running..."
 
-./asd
+mv ./asd ./example/asd
+cd example
+./asd $@
