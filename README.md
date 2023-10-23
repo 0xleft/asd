@@ -1,5 +1,7 @@
 # ASD
 
+This is really just meant to be an experiment and learning experience.
+
 A unnecessary npm-like package manager written in c. Its neither safe nor fast.
 
 If you get rate limited not my problem.
