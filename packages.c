@@ -102,7 +102,6 @@ JSON_Object *parse_package_json(char* path) {
     package_json_value = json_parse_file(path);
 
     if (package_json_value == NULL) {
-        printf("Error parsing package.json\n");
         return NULL;
     }
 
@@ -113,12 +112,20 @@ JSON_Object *parse_package_json(char* path) {
 
 JSON_Object *get_dev_dependencies(char* path) {
     JSON_Object *package_json_object = parse_package_json(path);
+    if (package_json_object == NULL) {
+        return NULL;
+    }
+
     JSON_Object *dev_dependencies = json_object_dotget_object(package_json_object, "devDependencies");
     return dev_dependencies;
 }
 
 JSON_Object *get_dependencies(char* path) {
     JSON_Object *package_json_object = parse_package_json(path);
+    if (package_json_object == NULL) {
+        return NULL;
+    }
+
     JSON_Object *dependencies = json_object_dotget_object(package_json_object, "dependencies");
     return dependencies;
 }
@@ -131,6 +138,16 @@ JSON_Object *get_all_dependencies(char* path) {
     dependencies = get_dependencies(path);
     JSON_Object *dev_dependencies;
     dev_dependencies = get_dev_dependencies(path);
+
+    if (dependencies == NULL) {
+        printf("Error getting dependencies\n");
+        return NULL;
+    }
+
+    if (dev_dependencies == NULL) {
+        printf("Error getting dev dependencies\n");
+        return NULL;
+    }
 
     for (int i = 0; i < json_object_get_count(dev_dependencies); i++) {
         const char* dependency = json_object_get_name(dev_dependencies, i);
@@ -167,39 +184,54 @@ void install_dependency(void *arg) {
     char *dependency = info->name;
     char *download_link = info->url;
 
-    char* command = malloc(strlen("curl -J -L -o node_modules/") + strlen(dependency) + strlen(" ") + strlen(download_link) + 1);
-    strcpy(command, "curl -J -L -o node_modules/");
-    strcat(command, dependency);
-    strcat(command, ".tgz ");
-    strcat(command, download_link);
-    system(command);
-    free(command);
+    if (download_link == "") {
+        return;
+    }
 
     create_package_folder(dependency);
 
-    command = malloc(strlen("tar -xzvf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 1);
-    strcpy(command, "tar -xzvf node_modules/");
-    strcat(command, dependency);
-    strcat(command, ".tgz -C node_modules/");
-    strcat(command, dependency);
-    strcat(command, " --strip-components=1");
-    system(command);
-    free(command);
+    char* download_command = malloc(strlen("curl -J -L -o node_modules/ --silent ") + strlen(dependency) + strlen(" ") + strlen(download_link) + 1);
+    strcpy(download_command, "curl -J -L -o node_modules/");
+    strcat(download_command, dependency);
+    strcat(download_command, ".tgz ");
+    strcat(download_command, download_link);
+    strcat(download_command, " --silent");
+    system(download_command);
+    free(download_command);
 
-    command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 1);
-    strcpy(command, "rm node_modules/");
-    strcat(command, dependency);
-    strcat(command, ".tgz");
-    system(command);
-    free(command);
+    char *extract_command = malloc(strlen("tar -xzf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 1);
+    strcpy(extract_command, "tar -xzf node_modules/");
+    strcat(extract_command, dependency);
+    strcat(extract_command, ".tgz -C node_modules/");
+    strcat(extract_command, dependency);
+    strcat(extract_command, " --strip-components=1");
+    system(extract_command);
+    free(extract_command);
+
+    char *rm_command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 1);
+    strcpy(rm_command, "rm node_modules/");
+    strcat(rm_command, dependency);
+    strcat(rm_command, ".tgz");
+    system(rm_command);
+    free(rm_command);
 
     char* package_json_path = malloc(strlen("node_modules/") + strlen(dependency) + strlen("/package.json") + 1);
     strcpy(package_json_path, "node_modules/");
     strcat(package_json_path, dependency);
     strcat(package_json_path, "/package.json");
+    printf("package_json_path: %s\n", package_json_path);
+    free(package_json_path);
 
-    JSON_Object *dependencies = get_all_dependencies(package_json_path);
-    install_dependencies(dependencies);
+    //JSON_Object *dependencies = get_all_dependencies(package_json_path);
+//
+    //if (dependencies == NULL) {
+    //    return;
+    //}
+//
+    //install_dependencies(dependencies);
+    //free(dependencies);
+
+    printf("Installing dependencies for %s...\n", dependency);
 }
 
 // command injection
@@ -227,4 +259,6 @@ void install_dependencies(JSON_Object *dependencies) {
     for (int i = 0; i < num_dependencies; i++) {
         pthread_join(thread_ids[i], NULL);
     }
+
+    free(dependencies);
 }
