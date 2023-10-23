@@ -28,6 +28,9 @@ size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
         memcpy(response->data + response->size, contents, total_size);
         response->size += total_size;
         response->data[response->size] = '\0';
+    } else {
+        printf("Error allocating memory for response\n");
+        return 0;
     }
 
     return total_size;
@@ -63,6 +66,8 @@ char* get_package_text(char* package_name) {
     strcat(full_url, package_name);
     strcat(full_url, "/latest");
 
+    printf("Making request to %s\n", full_url);
+
     const char* package_text = make_request(full_url);
 
     free(full_url);
@@ -84,7 +89,6 @@ char* get_latest_download_link(JSON_Object *package_json_object) {
     const char* tarball = json_object_get_string(dist, "tarball");
 
     if (tarball == NULL) {
-        printf("Error getting tarball %s\n", tarball);
         return "";
     }
 
@@ -132,33 +136,29 @@ JSON_Object *get_dependencies(char* path) {
 
 // get all dependencies from package.json
 JSON_Object *get_all_dependencies(char* path) {
-    printf("Getting all dependencies...\n");
-
     JSON_Object *dependencies;
     dependencies = get_dependencies(path);
     JSON_Object *dev_dependencies;
     dev_dependencies = get_dev_dependencies(path);
 
     if (dependencies == NULL) {
-        printf("Error getting dependencies\n");
         return NULL;
     }
 
-    if (dev_dependencies == NULL) {
-        printf("Error getting dev dependencies\n");
-        return NULL;
-    }
+    if (dev_dependencies != NULL) {
+        for (int i = 0; i < json_object_get_count(dev_dependencies); i++) {
+            const char* dependency = json_object_get_name(dev_dependencies, i);
 
-    for (int i = 0; i < json_object_get_count(dev_dependencies); i++) {
-        const char* dependency = json_object_get_name(dev_dependencies, i);
-
-        const char* package_text = get_package_text(dependency);
-        JSON_Object *package_json_object = get_package_json(package_text);
-        const char* latest_download_link = get_latest_download_link(package_json_object);
-        json_object_set_string(dependencies, dependency, latest_download_link);
+            const char* package_text = get_package_text(dependency);
+            JSON_Object *package_json_object = get_package_json(package_text);
+            const char* latest_download_link = get_latest_download_link(package_json_object);
+            json_object_set_string(dependencies, dependency, latest_download_link);
+        }
+    } else {
     }
 
     for (int i = 0; i < json_object_get_count(dependencies); i++) {
+
         const char* dependency = json_object_get_name(dependencies, i);
 
         const char* package_text = get_package_text(dependency);
@@ -188,9 +188,20 @@ void install_dependency(void *arg) {
         return;
     }
 
+    // check if dependency is already installed
+    char* command = malloc(strlen("ls node_modules/") + strlen(dependency) + 1);
+    strcpy(command, "ls node_modules/");
+    strcat(command, dependency);
+    int status = system(command);
+    free(command);
+
+    if (status == 0) {
+        return;
+    }
+
     create_package_folder(dependency);
 
-    char* download_command = malloc(strlen("curl -J -L -o node_modules/ --silent ") + strlen(dependency) + strlen(" ") + strlen(download_link) + 1);
+    char* download_command = malloc(strlen("curl -J -L -o node_modules/ --silent ") + strlen(dependency) + strlen(" ") + strlen(download_link) + 5);
     strcpy(download_command, "curl -J -L -o node_modules/");
     strcat(download_command, dependency);
     strcat(download_command, ".tgz ");
@@ -199,7 +210,7 @@ void install_dependency(void *arg) {
     system(download_command);
     free(download_command);
 
-    char *extract_command = malloc(strlen("tar -xzf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 1);
+    char *extract_command = malloc(strlen("tar -xzf node_modules/") + strlen(dependency) + strlen(".tgz -C node_modules/") + strlen(dependency) + strlen(" --strip-components=1") + 5);
     strcpy(extract_command, "tar -xzf node_modules/");
     strcat(extract_command, dependency);
     strcat(extract_command, ".tgz -C node_modules/");
@@ -208,36 +219,31 @@ void install_dependency(void *arg) {
     system(extract_command);
     free(extract_command);
 
-    char *rm_command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 1);
+    char *rm_command = malloc(strlen("rm node_modules/") + strlen(dependency) + strlen(".tgz") + 5);
     strcpy(rm_command, "rm node_modules/");
     strcat(rm_command, dependency);
     strcat(rm_command, ".tgz");
     system(rm_command);
     free(rm_command);
 
-    char* package_json_path = malloc(strlen("node_modules/") + strlen(dependency) + strlen("/package.json") + 1);
+    char* package_json_path = malloc(strlen("node_modules/") + strlen(dependency) + strlen("/package.json") + 5);
     strcpy(package_json_path, "node_modules/");
     strcat(package_json_path, dependency);
     strcat(package_json_path, "/package.json");
-    printf("package_json_path: %s\n", package_json_path);
+
+    JSON_Object *dependencies = get_all_dependencies(package_json_path);
     free(package_json_path);
 
-    //JSON_Object *dependencies = get_all_dependencies(package_json_path);
-//
-    //if (dependencies == NULL) {
-    //    return;
-    //}
-//
-    //install_dependencies(dependencies);
-    //free(dependencies);
+    if (dependencies == NULL) {
+        return;
+    }
 
-    printf("Installing dependencies for %s...\n", dependency);
+    install_dependencies(dependencies);
+    free(dependencies);
 }
 
 // command injection
 void install_dependencies(JSON_Object *dependencies) {
-    printf("Installing dependencies...\n");
-
     int num_dependencies = json_object_get_count(dependencies);
     struct DependencyInfo info[num_dependencies];
     pthread_t thread_ids[num_dependencies];
@@ -254,11 +260,10 @@ void install_dependencies(JSON_Object *dependencies) {
         info[i].url = (char *)download_link;
 
         pthread_create(&thread_ids[i], NULL, install_dependency, &info[i]);
+        //install_dependency(&info[i]);
     }
 
     for (int i = 0; i < num_dependencies; i++) {
         pthread_join(thread_ids[i], NULL);
     }
-
-    free(dependencies);
 }

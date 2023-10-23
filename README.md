@@ -1,6 +1,8 @@
 # ASD
 
-A unnecessary npm-like package manager written in c.
+A unnecessary npm-like package manager written in c. Its neither safe nor fast.
+
+If you get rate limited not my problem.
 
 # Dev
 
