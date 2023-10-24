@@ -59,7 +59,8 @@ int is_valid_input(const char *input) {
 
     for (size_t i = 0; i < strlen(input); i++) {
         char c = input[i];
-        if ((!((c >= '0' && c <= '9') || (c >= 32 && c <= 126))) && c != '/' && c != '.' && c != '\\') {
+        // check if the character is a valid ASCII character or a number or / \ or .
+        if ((c < 48 || c > 57) && (c < 65 || c > 90) && (c < 97 || c > 122) && c != 47 && c != 92 && c != 46) {
             return 0;
         }
     }

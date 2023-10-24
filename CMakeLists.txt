@@ -7,8 +7,8 @@ set(CMAKE_C_STANDARD 11)
 add_executable(asd main.c
         packages.c
         packages.h
-        parson.c
-        parson.h
+        thirdparty/parson.c
+        thirdparty/parson.h
         utils.c utils.h
         caching.c
         caching.h)

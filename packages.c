@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "parson.h"
+#include "thirdparty/parson.h"
 #include "packages.h"
 #include "utils.h"
 #include <stdlib.h>
