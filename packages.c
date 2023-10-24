@@ -108,29 +108,26 @@ void install_package(char* package_name, char* version) {
         return;
     }
 
-    if (is_cached(package_name, version)) {
-        printf("Package is cached\n");
-        copy_to_node_folder(package_name, version);
-        return;
-    }
+    if (is_cached(package_name, version) == 0) {
+        char* package_text = get_package_text(package_name, version);
 
-    char* package_text = get_package_text(package_name, version);
+        JSON_Object *package_object = parse_package_json(package_text);
+        char* download_link = get_download_link(package_object);
+        free(package_text);
 
-    JSON_Object *package_object = parse_package_json(package_text);
-    char* download_link = get_download_link(package_object);
-    free(package_text);
+        if (strcmp(download_link, "") == 0) {
+            printf("Error getting download link (probably wrong version)\n");
+            return;
+        }
 
-    if (strcmp(download_link, "") == 0) {
-        printf("Error getting download link (probably wrong version)\n");
-        return;
+        create_cache_folder_for_package(package_name, version);
+
+        if (download_package_tgz(download_link, package_name, version) == 0) {
+            return;
+        }
     }
 
     create_package_folder(package_name);
-    create_cache_folder_for_package(package_name, version);
-
-    if (download_package_tgz(download_link, package_name, version) == 0) {
-        return;
-    }
 
     copy_to_node_folder(package_name, version);
 
