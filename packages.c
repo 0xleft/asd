@@ -7,11 +7,11 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-    USER_HOME = "%userprofile%";
-    DIVIDER = "\\"
+    const char* USER_HOME = "%userprofile%";
+    const char* DIVIDER = "\\"
 #else
-    USER_HOME = "~";
-    DIVIDER = "/";
+    const char* USER_HOME = "~";
+    const char* DIVIDER = "/";
 #endif
 
 
@@ -58,11 +58,18 @@ void create_node_folder() {
 void create_cache_folder() {
     char* command = malloc(strlen("mkdir -p ") + strlen(USER_HOME) + strlen(DIVIDER) + strlen(".asdcache") + 1);
     strcpy(command, "mkdir -p ");
-    
+    strcat(command, USER_HOME);
+    strcat(command, DIVIDER);
+    strcat(command, ".asdcache");
+    system(command);
     free(command);
 }
 
-int is_cached(char* package_name) {
+int is_cached(char* package_name, char* version) {
+
+}
+
+int copy_to_node_folder(char* package_name, char* version) {
 
 }
 
@@ -76,6 +83,11 @@ void install_package(char* package_name, char* version) {
     JSON_Object *package_object = parse_package_json(package_text);
     const char* download_link = get_download_link(package_object);
 
+    if (is_cached(package_name, version)) {
+
+    }
+
+    // TODO download to cache folder and then move to node_modules folder
     char* download_command = malloc(strlen("curl -J -L -o node_modules/ --silent ") + strlen(package_name) + strlen(" ") + strlen(download_link) + 5);
     strcpy(download_command, "curl -J -L -o node_modules/");
     strcat(download_command, package_name);

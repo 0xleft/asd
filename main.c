@@ -12,6 +12,7 @@ int main(int argc, char *argv[]) {
     if (strcmp(argv[1], "install") == 0) {
         printf("Installing...\n");
         create_node_folder();
+        create_cache_folder();
 
         install_package(argv[2], argv[3]);
 
