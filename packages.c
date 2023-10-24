@@ -6,6 +6,15 @@
 #include "utils.h"
 #include <stdlib.h>
 
+#ifdef _WIN32
+    USER_HOME = "%userprofile%";
+    DIVIDER = "\\"
+#else
+    USER_HOME = "~";
+    DIVIDER = "/";
+#endif
+
+
 char* get_package_text(char* package_name, char* version) {
     char* url = "https://registry.npmjs.org/";
     char* full_url = malloc(strlen(url) + strlen(package_name) + 1 + strlen(version) + 1);
@@ -41,17 +50,24 @@ char* get_download_link(JSON_Object *package_json_object) {
     return tarball;
 }
 
-JSON_Object *get_package_dependencies(JSON_Object *package_json_object) {
-
-}
-
 void create_node_folder() {
     char* command = "mkdir -p node_modules";
     system(command);
 }
 
+void create_cache_folder() {
+    char* command = malloc(strlen("mkdir -p ") + strlen(USER_HOME) + strlen(DIVIDER) + strlen(".asdcache") + 1);
+    strcpy(command, "mkdir -p ");
+    
+    free(command);
+}
+
+int is_cached(char* package_name) {
+
+}
+
 // TODO remove command injection
-JSON_Object install_package(char* package_name, char* version) {
+void install_package(char* package_name, char* version) {
     if (version == "*") {
         version = "latest";
     }
