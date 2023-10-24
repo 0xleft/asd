@@ -11,7 +11,9 @@ add_executable(asd main.c
         thirdparty/parson.h
         utils.c utils.h
         caching.c
-        caching.h)
+        caching.h
+        globals.c
+        globals.h)
 
 find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)

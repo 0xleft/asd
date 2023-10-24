@@ -6,6 +6,7 @@
 #include "unistd.h"
 #include "string.h"
 #include "stdio.h"
+#include "globals.h"
 
 #ifdef WIN32
 #include <io.h>
@@ -57,7 +58,7 @@ void create_cache_folder_for_package(char* package_name, char* version) {
     char* command = malloc(strlen("mkdir -p ") + strlen(path) + 1);
     strcpy(command, "mkdir -p ");
     strcat(command, path);
-    printf("Creating cache folder for package: %s\n", command);
+    // printf("Creating cache folder for package: %s\n", command);
     system(command);
     free(command);
 }
@@ -75,7 +76,7 @@ int is_cached(char* package_name, char* version) {
     strcat(path, DIVIDER);
     strcat(path, package_name);
     strcat(path, ".tgz");
-    printf("Checking if package is cached: %s\n", path);
+    // printf("Checking if package is cached: %s\n", path);
 
     if (access(path, F_OK) == 0) {
         free(path);
