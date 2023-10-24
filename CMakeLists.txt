@@ -9,7 +9,9 @@ add_executable(asd main.c
         packages.h
         parson.c
         parson.h
-        utils.c utils.h)
+        utils.c utils.h
+        caching.c
+        caching.h)
 
 find_package(CURL REQUIRED)
 find_package(Threads REQUIRED)

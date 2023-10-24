@@ -50,3 +50,19 @@ char* make_request(char* url) {
 
     return response.data;
 }
+
+// what a horrible function
+int is_valid_input(const char *input) {
+    if (input == NULL) {
+        return 0;
+    }
+
+    for (size_t i = 0; i < strlen(input); i++) {
+        char c = input[i];
+        if ((!((c >= '0' && c <= '9') || (c >= 32 && c <= 126))) && c != '/' && c != '.' && c != '\\') {
+            return 0;
+        }
+    }
+
+    return 1;
+}

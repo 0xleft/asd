@@ -3,15 +3,8 @@
 #include "packages.h"
 #include "utils.h"
 #include <stdlib.h>
-
-#ifdef _WIN32
-    const char* USER_HOME = "%userprofile%";
-    const char* DIVIDER = "\\"
-#else
-    const char* USER_HOME = "~";
-    const char* DIVIDER = "/";
-#endif
-
+#include <sys/stat.h>
+#include "caching.h"
 
 char* get_package_text(char* package_name, char* version) {
     char* url = "https://registry.npmjs.org/";
@@ -61,51 +54,85 @@ void create_package_folder(char* package_name) {
     free(command);
 }
 
-void create_cache_folder() {
-    char* command = malloc(strlen("mkdir -p ") + strlen(USER_HOME) + strlen(DIVIDER) + strlen(".asdcache") + 1);
-    strcpy(command, "mkdir -p ");
-    strcat(command, USER_HOME);
-    strcat(command, DIVIDER);
-    strcat(command, ".asdcache");
-    system(command);
-    free(command);
-}
+int download_package_tgz(char* download_link, char* package_name, char* version) {
+    char* cache_folder = get_cache_folder(package_name, version);
 
-int is_cached(char* package_name, char* version) {
+    char* download_command = malloc(strlen("curl -J -L -o /") + strlen(cache_folder) + strlen(package_name) + strlen(".tgz") + strlen(" --silent ") + strlen(download_link) + 5);
+    strcpy(download_command, "curl -J -L -o ");
+    strcat(download_command, cache_folder);
+    strcat(download_command, "/");
+    strcat(download_command, package_name);
+    strcat(download_command, ".tgz");
+    strcat(download_command, " ");
+    strcat(download_command, download_link);
+    strcat(download_command, " --silent");
+    if (system(download_command) != 0) {
+        printf("Error downloading package\n");
+        return 0;
+    }
+    printf("Downloaded package to: %s\n", cache_folder);
+    printf("Download command: %s\n", download_command);
+    free(download_command);
 
+    free(cache_folder);
+
+    return 1;
 }
 
 int copy_to_node_folder(char* package_name, char* version) {
+    char* cache_folder = get_cache_folder(package_name, version);
 
+    char* copy_command = malloc(strlen("cp -r ") + strlen(cache_folder) + strlen(package_name) + strlen(".tgz node_modules/") + strlen(package_name) + strlen(".tgz") + 5);
+    strcpy(copy_command, "cp -r ");
+    strcat(copy_command, cache_folder);
+    strcat(copy_command, package_name);
+    strcat(copy_command, ".tgz node_modules/");
+    strcat(copy_command, package_name);
+    strcat(copy_command, ".tgz");
+    system(copy_command);
+    printf("Copied package to: %s\n", copy_command);
+    printf("Copy command: %s\n", copy_command);
+    free(copy_command);
+
+    free(cache_folder);
 }
 
-// TODO remove command injection
 void install_package(char* package_name, char* version) {
     if (strcmp(version, "*") == 0) {
         version = "latest";
     }
 
-    char* package_text = get_package_text(package_name, version);
-    JSON_Object *package_object = parse_package_json(package_text);
-    const char* download_link = get_download_link(package_object);
-    free(package_text);
-
+    // some sanitization at least :)
+    if (is_valid_input(package_name) == 0 || is_valid_input(version) == 0) {
+        printf("Invalid input\n");
+        return;
+    }
 
     if (is_cached(package_name, version)) {
+        printf("Package is cached\n");
+        copy_to_node_folder(package_name, version);
+        return;
+    }
 
+    char* package_text = get_package_text(package_name, version);
+
+    JSON_Object *package_object = parse_package_json(package_text);
+    char* download_link = get_download_link(package_object);
+    free(package_text);
+
+    if (strcmp(download_link, "") == 0) {
+        printf("Error getting download link (probably wrong version)\n");
+        return;
     }
 
     create_package_folder(package_name);
+    create_cache_folder_for_package(package_name, version);
 
-    // TODO download to cache folder and then move to node_modules folder
-    char* download_command = malloc(strlen("curl -J -L -o node_modules/ --silent ") + strlen(package_name) + strlen(" ") + strlen(download_link) + 5);
-    strcpy(download_command, "curl -J -L -o node_modules/");
-    strcat(download_command, package_name);
-    strcat(download_command, ".tgz ");
-    strcat(download_command, download_link);
-    strcat(download_command, " --silent");
-    system(download_command);
-    free(download_command);
+    if (download_package_tgz(download_link, package_name, version) == 0) {
+        return;
+    }
+
+    copy_to_node_folder(package_name, version);
 
     char *extract_command = malloc(strlen("tar -xzf node_modules/") + strlen(package_name) + strlen(".tgz -C node_modules/") + strlen(package_name) + strlen(" --strip-components=1") + 5);
     strcpy(extract_command, "tar -xzf node_modules/");
