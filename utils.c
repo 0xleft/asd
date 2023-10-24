@@ -3,6 +3,7 @@
 //
 
 #include "utils.h"
+#include <curl/curl.h>
 
 struct ResponseData {
     char *data;

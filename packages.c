@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include "parson.h"
-#include <curl/curl.h>
 #include "packages.h"
-#include <pthread.h>
 #include "utils.h"
 #include <stdlib.h>
 
@@ -55,6 +53,14 @@ void create_node_folder() {
     system(command);
 }
 
+void create_package_folder(char* package_name) {
+    char* command = malloc(strlen("mkdir -p node_modules/") + strlen(package_name) + 1);
+    strcpy(command, "mkdir -p node_modules/");
+    strcat(command, package_name);
+    system(command);
+    free(command);
+}
+
 void create_cache_folder() {
     char* command = malloc(strlen("mkdir -p ") + strlen(USER_HOME) + strlen(DIVIDER) + strlen(".asdcache") + 1);
     strcpy(command, "mkdir -p ");
@@ -75,17 +81,21 @@ int copy_to_node_folder(char* package_name, char* version) {
 
 // TODO remove command injection
 void install_package(char* package_name, char* version) {
-    if (version == "*") {
+    if (strcmp(version, "*") == 0) {
         version = "latest";
     }
 
     char* package_text = get_package_text(package_name, version);
     JSON_Object *package_object = parse_package_json(package_text);
     const char* download_link = get_download_link(package_object);
+    free(package_text);
+
 
     if (is_cached(package_name, version)) {
 
     }
+
+    create_package_folder(package_name);
 
     // TODO download to cache folder and then move to node_modules folder
     char* download_command = malloc(strlen("curl -J -L -o node_modules/ --silent ") + strlen(package_name) + strlen(" ") + strlen(download_link) + 5);
