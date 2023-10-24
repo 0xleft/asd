@@ -4,8 +4,8 @@
 
 int main(int argc, char *argv[]) {
 
-    if (argc < 2) {
-        printf("Usage: %s [install, build]\n", argv[0]);
+    if (argc < 4) {
+        printf("Usage: %s [install] [package] [version]\n", argv[0]);
         return 1;
     }
 
@@ -13,16 +13,10 @@ int main(int argc, char *argv[]) {
         printf("Installing...\n");
         create_node_folder();
 
-        JSON_Object *dependencies = get_all_dependencies("package.json");
-        install_dependencies(dependencies);
+        install_package(argv[2], argv[3]);
 
         printf("Done!\n");
 
-        return 0;
-    }
-
-    if (strcmp(argv[1], "build") == 0) {
-        printf("Building...\n");
         return 0;
     }
 
