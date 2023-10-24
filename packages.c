@@ -123,7 +123,7 @@ char* get_package_json_path(char* package_name) {
         return "package.json";
     }
 
-    char* path = malloc(strlen("node_modules/") + strlen(package_name) + strlen("/package.json") + 1);
+    char* path = malloc(strlen("node_modules/") + strlen(package_name) + strlen("/package.json") + 2);
     strcpy(path, "node_modules");
     strcat(path, DIVIDER);
     strcat(path, package_name);
@@ -210,24 +210,31 @@ JSON_Array *get_installed_deps() {
         printf("Failed to run command\n" );
         exit(1);
     }
-
+    // print fpp
     while (fgets(path, sizeof(path)-1, fp) != NULL) {
-        char* package_name = path;
-        package_name[strlen(package_name) - 1] = '\0';
+        // rmeove \n
+        path[strlen(path) - 1] = '\0';
+        char* package_text = read_package_json(path);
+        JSON_Array *package_json = parse_package_json(package_text);
+        char* version = json_object_dotget_string(package_json, "version");
 
-        char* package_json = read_package_json(package_name);
-        JSON_Array *package_dependencies = get_deps_from_json(package_json);
-        add_dep_to_array(all_dependencies, package_dependencies);
+        JSON_Value *dep_value = json_value_init_object();
+        JSON_Object *dep_object = json_value_get_object(dep_value);
+
+        json_object_set_string(dep_object, "name", path);
+        json_object_set_string(dep_object, "version", version);
+
+        json_array_append_value(all_dependencies, dep_value);
+
+        free(package_text);
     }
 
     pclose(fp);
-
     return all_dependencies;
 }
 
 void install_package(char* package_name, char* version) {
-    // test
-    //print_deps_from_array(get_installed_deps());
+
 
     if (strcmp(version, "*") == 0) {
         version = "latest";
@@ -282,5 +289,5 @@ void install_package(char* package_name, char* version) {
     free(rm_command);
 
     JSON_Array *all_dependencies = get_deps_from_json(read_package_json(package_name));
-    print_deps_from_array(all_dependencies);
+    // print_deps_from_array(all_dependencies);
 }
