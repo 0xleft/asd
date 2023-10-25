@@ -235,7 +235,7 @@ JSON_Array *get_installed_deps() {
         char* version = json_object_dotget_string(package_json, "version");
 
         if (name == NULL || version == NULL) {
-            printf("Error parsing package.json in %s\n", path);
+            // printf("Error parsing package.json in %s\n", path);
             return NULL;
         }
 
@@ -292,24 +292,26 @@ int is_already_installed(char* package_name, char* version) {
     return 0;
 }
 
-void install_package(char* package_name, char* version) {
+void install_package(char* package_name, char* version, char* single) {
     version = resolve_version(version);
 
-    if (is_already_installed(package_name, version) == 1) {
+    const char* package_name_const = package_name;
+
+    if (is_already_installed(package_name_const, version) == 1) {
         // printf("Package already installed: %s : %s\n", package_name, version);
         return;
     }
 
     // some sanitization at least :)
-    if (is_valid_input(package_name) == 0 || is_valid_input(version) == 0) {
-        printf("Invalid input for %s : %s\n", package_name, version);
+    if (is_valid_input(package_name_const) == 0 || is_valid_input(version) == 0) {
+        printf("Invalid input for %s : %s\n", package_name_const, version);
         return;
     }
 
-    if (is_cached(package_name, version) == 0) {
-        // printf("Package not cached: %s : %s\n", package_name, version);
+    if (is_cached(package_name_const, version) == 0) {
+        printf("Package not cached: %s : %s\n", package_name, version);
 
-        char* package_text = get_package_text(package_name, version);
+        char* package_text = get_package_text(package_name_const, version);
 
         JSON_Object *package_object = parse_package_json(package_text);
         char* download_link = get_download_link(package_object);
@@ -320,37 +322,43 @@ void install_package(char* package_name, char* version) {
             return;
         }
 
-        create_cache_folder_for_package(package_name, version);
+        create_cache_folder_for_package(package_name_const, version);
 
         if (download_package_tgz(download_link, package_name, version) == 0) {
             return;
         }
+    } else {
+        printf("Package cached: %s : %s\n", package_name, version);
     }
 
-    create_package_folder(package_name);
+    create_package_folder(package_name_const);
 
-    copy_to_node_folder(package_name, version);
+    copy_to_node_folder(package_name_const, version);
 
-    char *extract_command = malloc(strlen("tar -xzf node_modules/") + strlen(package_name) + strlen(".tgz -C node_modules/") + strlen(package_name) + strlen(" --strip-components=1") + 5);
+    char *extract_command = malloc(strlen("tar -xzf node_modules/") + strlen(package_name_const) + strlen(".tgz -C node_modules/") + strlen(package_name_const) + strlen(" --strip-components=1") + 5);
     strcpy(extract_command, "tar -xzf node_modules");
     strcat(extract_command, DIVIDER);
-    strcat(extract_command, package_name);
+    strcat(extract_command, package_name_const);
     strcat(extract_command, ".tgz -C node_modules");
     strcat(extract_command, DIVIDER);
-    strcat(extract_command, package_name);
+    strcat(extract_command, package_name_const);
     strcat(extract_command, " --strip-components=1");
     system(extract_command);
     free(extract_command);
 
-    char *rm_command = malloc(strlen("rm node_modules/") + strlen(package_name) + strlen(".tgz") + 5);
+    char *rm_command = malloc(strlen("rm node_modules/") + strlen(package_name_const) + strlen(".tgz") + 5);
     strcpy(rm_command, "rm node_modules");
     strcat(rm_command, DIVIDER);
-    strcat(rm_command, package_name);
+    strcat(rm_command, package_name_const);
     strcat(rm_command, ".tgz");
     system(rm_command);
     free(rm_command);
 
-    char* package_json_path = get_package_json_path(package_name);
+    if (single != NULL) {
+        return;
+    }
+
+    char* package_json_path = get_package_json_path(package_name_const);
     char* package_text = read_package_json(package_json_path);
     JSON_Array *all_dependencies = get_deps_from_json(package_text);
     free(package_text);
@@ -363,9 +371,9 @@ void install_package(char* package_name, char* version) {
         const char *name = json_object_get_string(dep_object, "name");
         const char *version = json_object_get_string(dep_object, "version");
 
-        printf("Installing dependency: %s : %s\n", name, version);
+        // printf("Installing dependency: %s : %s\n", name, version);
 
-        install_package(name, version);
+        install_package(name, version, single);
     }
     // print_deps_from_array(all_dependencies);
 }

@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
         printf("Installing...\n");
         create_node_folder();
 
-        install_package(argv[2], argv[3]);
+        install_package(argv[2], argv[3], argv[4]);
     } else if (strcmp(argv[1], "install") == 0 && strcmp(argv[2], ".") == 0) {
         // install from package.json
     }

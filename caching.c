@@ -66,6 +66,8 @@ void clear_cache() {
 
 char* get_cache_folder(char* package_name, char* version) {
 
+    printf("Getting cache folder for package: %s\n", package_name);
+
     char* path = malloc(strlen(get_resolved_home()) + strlen(DIVIDER) + strlen(".asdcache") + strlen(DIVIDER) + strlen(package_name) + strlen(DIVIDER) + strlen(version) + 1);
     strcpy(path, get_resolved_home());
     strcat(path, DIVIDER);
@@ -75,7 +77,7 @@ char* get_cache_folder(char* package_name, char* version) {
     strcat(path, DIVIDER);
     strcat(path, version);
 
-    printf("%s", path);
+    printf("Cache folder: %s\n", path);
 
     return path;
 }
