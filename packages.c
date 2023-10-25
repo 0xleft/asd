@@ -237,19 +237,19 @@ JSON_Array *get_installed_deps() {
     return all_dependencies;
 }
 
-char* translate_version(char* version) {
+char* resolve_version(char* version) {
     if (strcmp(version, "*") == 0) {
         return "latest";
     }
 
+    // TODO actually resolve version
 
-    return version;
+    return "latest";
+    //return version;
 }
 
 void install_package(char* package_name, char* version) {
-    if (strcmp(version, "*") == 0) {
-        version = "latest";
-    }
+    version = resolve_version(version);
 
     // some sanitization at least :)
     if (is_valid_input(package_name) == 0 || is_valid_input(version) == 0) {

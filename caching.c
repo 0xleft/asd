@@ -40,6 +40,19 @@ char* get_resolved_home() {
     return "";
 }
 
+void clear_cache() {
+    char* command = malloc(strlen("rm -rf ") + strlen(get_resolved_home()) + strlen(DIVIDER) + strlen(".asdcache") + 1);
+    strcpy(command, "rm -rf ");
+
+    strcat(command, get_resolved_home());
+    strcat(command, DIVIDER);
+    strcat(command, ".asdcache");
+
+    system(command);
+    free(command);
+    printf("Cleared cache\n");
+}
+
 char* get_cache_folder(char* package_name, char* version) {
     char* path = malloc(strlen(get_resolved_home()) + strlen(DIVIDER) + strlen(".asdcache") + strlen(DIVIDER) + strlen(package_name) + strlen(DIVIDER) + strlen(version) + 1);
     strcpy(path, get_resolved_home());

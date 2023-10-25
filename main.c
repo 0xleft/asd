@@ -9,13 +9,16 @@ int main(int argc, char *argv[]) {
 
     start = clock();
 
-    if (argc < 4) {
+    if (argc < 2) {
         printf("Usage: %s [install] [package] [version]\n", argv[0]);
         printf("Usage: %s [install] [package] [*]\n", argv[0]);
         return 1;
     }
 
-    if (strcmp(argv[1], "install") == 0) {
+    if (strcmp(argv[1], "clear") == 0) {
+        printf("Clearing cache...\n");
+        clear_cache();
+    } else if (strcmp(argv[1], "install") == 0) {
         printf("Installing...\n");
         create_node_folder();
 

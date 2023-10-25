@@ -60,8 +60,8 @@ int is_valid_input(const char *input) {
     for (size_t i = 0; i < strlen(input); i++) {
         char c = input[i];
         // check if the character is a valid lowercase and uppercase character or a number or / \ or . ^ or -
-        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' &&  c <= '9') || c == '/' || c == '\\' || c == '.' || c == '^' || c == '-') || c == '@') {
-            // printf("Invalid character: %c\n", c);
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' &&  c <= '9') || c == '/' || c == '\\' || c == '.' || c == '^' || c == '-' || c == '@')) {
+            printf("Invalid character: %c\n", c);
             return 0;
         }
     }
