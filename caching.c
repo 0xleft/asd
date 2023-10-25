@@ -22,6 +22,17 @@ char* USER_HOME = "$HOME";
 char* DIVIDER = "/";
 #endif
 
+char* get_stripped_package_name(char* package_name) {
+    if (package_name[0] == '@') {
+        char* slash = strchr(package_name, '/');
+        if (slash != NULL) {
+            package_name = slash + 1;
+        }
+    }
+
+    return package_name;
+}
+
 char* get_resolved_home() {
     if (USER_HOME[0] == '$') {
         char* env = getenv(USER_HOME + 1);
@@ -54,6 +65,7 @@ void clear_cache() {
 }
 
 char* get_cache_folder(char* package_name, char* version) {
+
     char* path = malloc(strlen(get_resolved_home()) + strlen(DIVIDER) + strlen(".asdcache") + strlen(DIVIDER) + strlen(package_name) + strlen(DIVIDER) + strlen(version) + 1);
     strcpy(path, get_resolved_home());
     strcat(path, DIVIDER);
@@ -62,6 +74,8 @@ char* get_cache_folder(char* package_name, char* version) {
     strcat(path, package_name);
     strcat(path, DIVIDER);
     strcat(path, version);
+
+    printf("%s", path);
 
     return path;
 }
@@ -77,8 +91,10 @@ void create_cache_folder_for_package(char* package_name, char* version) {
 }
 
 int is_cached(char* package_name, char* version) {
+    char* stripped_package_name = get_stripped_package_name(package_name);
+
     char* path = malloc(strlen(get_resolved_home()) + strlen(DIVIDER) + strlen(".asdcache") + strlen(DIVIDER) + strlen(package_name) + strlen(DIVIDER) + strlen(version) +
-                                strlen(DIVIDER) + strlen(package_name) + strlen(".tgz") + 1);
+                                strlen(DIVIDER) + strlen(stripped_package_name) + strlen(".tgz") + 1);
     strcpy(path, get_resolved_home());
     strcat(path, DIVIDER);
     strcat(path, ".asdcache");
@@ -87,9 +103,12 @@ int is_cached(char* package_name, char* version) {
     strcat(path, DIVIDER);
     strcat(path, version);
     strcat(path, DIVIDER);
-    strcat(path, package_name);
+    strcat(path, stripped_package_name);
     strcat(path, ".tgz");
+
     // printf("Checking if package is cached: %s\n", path);
+
+    // free(stripped_package_name);
 
     if (access(path, F_OK) == 0) {
         free(path);

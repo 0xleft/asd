@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include "caching.h"
 #include "globals.h"
+#include <string.h>
 
 #define MAX_THREAD_COUNT 10
 
@@ -65,6 +66,8 @@ void create_package_folder(char* package_name) {
 int download_package_tgz(char* download_link, char* package_name, char* version) {
     char* cache_folder = get_cache_folder(package_name, version);
 
+    package_name = get_stripped_package_name(package_name);
+
     char* download_command = malloc(strlen("curl -J -L -o /") + strlen(cache_folder) + strlen(package_name) + strlen(".tgz") + strlen(" --silent ") + strlen(download_link) + 5);
     strcpy(download_command, "curl -J -L -o ");
     strcat(download_command, cache_folder);
@@ -90,11 +93,13 @@ int download_package_tgz(char* download_link, char* package_name, char* version)
 int copy_to_node_folder(char* package_name, char* version) {
     char* cache_folder = get_cache_folder(package_name, version);
 
-    char* copy_command = malloc(strlen("cp -r ") + strlen(cache_folder) + strlen(package_name) + strlen(".tgz node_modules ") + strlen(package_name) + strlen(".tgz") + 5);
+    char* stripped_package_name = get_stripped_package_name(package_name);
+
+    char* copy_command = malloc(strlen("cp -r ") + strlen(cache_folder) + strlen(stripped_package_name) + strlen(".tgz node_modules ") + strlen(package_name) + strlen(".tgz") + 5);
     strcpy(copy_command, "cp -r ");
     strcat(copy_command, cache_folder);
     strcat(copy_command, DIVIDER);
-    strcat(copy_command, package_name);
+    strcat(copy_command, stripped_package_name);
     strcat(copy_command, ".tgz node_modules");
     strcat(copy_command, DIVIDER);
     strcat(copy_command, package_name);
@@ -139,7 +144,7 @@ char* get_package_json_path(char* package_name) {
 
 // chatgpt
 char* read_package_json(char* package_name) {
-    char* path = get_package_json_path(package_name);
+    char* path = package_name;
 
     FILE *fp;
     long lSize;
@@ -161,7 +166,6 @@ char* read_package_json(char* package_name) {
         fclose(fp),free(buffer),fputs("entire read fails",stderr),exit(1);
 
     fclose(fp);
-    free(path);
 
     return buffer;
 }
@@ -205,9 +209,13 @@ JSON_Array *get_installed_deps() {
     JSON_Array *all_dependencies = json_value_get_array(all_dependencies_value);
     json_array_clear(all_dependencies);
 
-    char* command = "ls node_modules";
+    char* command = malloc(strlen("find") + strlen(" -name package.json") + 1);
+    strcpy(command, "find");
+    strcat(command, " -name package.json");
     FILE *fp;
     char path[1035];
+
+    // printf("Running command: %s\n", command);
 
     fp = popen(command, "r");
     if (fp == NULL) {
@@ -218,14 +226,23 @@ JSON_Array *get_installed_deps() {
     while (fgets(path, sizeof(path)-1, fp) != NULL) {
         // rmeove \n
         path[strlen(path) - 1] = '\0';
+
+        // printf("Found package.json: %s\n", path);
         char* package_text = read_package_json(path);
+        // printf("Package text: %s\n", package_text);
         JSON_Array *package_json = parse_package_json(package_text);
+        char* name = json_object_dotget_string(package_json, "name");
         char* version = json_object_dotget_string(package_json, "version");
+
+        if (name == NULL || version == NULL) {
+            printf("Error parsing package.json in %s\n", path);
+            return NULL;
+        }
 
         JSON_Value *dep_value = json_value_init_object();
         JSON_Object *dep_object = json_value_get_object(dep_value);
 
-        json_object_set_string(dep_object, "name", path);
+        json_object_set_string(dep_object, "name", name);
         json_object_set_string(dep_object, "version", version);
 
         json_array_append_value(all_dependencies, dep_value);
@@ -234,6 +251,8 @@ JSON_Array *get_installed_deps() {
     }
 
     pclose(fp);
+    free(command);
+
     return all_dependencies;
 }
 
@@ -248,8 +267,38 @@ char* resolve_version(char* version) {
     //return version;
 }
 
+int is_already_installed(char* package_name, char* version) {
+    JSON_Array *all_dependencies = get_installed_deps();
+
+    // print_deps_from_array(all_dependencies);
+
+    for (int i = 0; i < json_array_get_count(all_dependencies); i++) {
+        JSON_Value *dep_value = json_array_get_value(all_dependencies, i);
+        JSON_Object *dep_object = json_value_get_object(dep_value);
+
+        const char *name = json_object_get_string(dep_object, "name");
+        const char *version = json_object_get_string(dep_object, "version");
+
+        free(dep_value);
+        free(dep_object);
+
+        if (strcmp(name, package_name) == 0) {
+            free(all_dependencies);
+            return 1;
+        }
+    }
+
+    free(all_dependencies);
+    return 0;
+}
+
 void install_package(char* package_name, char* version) {
     version = resolve_version(version);
+
+    if (is_already_installed(package_name, version) == 1) {
+        // printf("Package already installed: %s : %s\n", package_name, version);
+        return;
+    }
 
     // some sanitization at least :)
     if (is_valid_input(package_name) == 0 || is_valid_input(version) == 0) {
@@ -258,6 +307,8 @@ void install_package(char* package_name, char* version) {
     }
 
     if (is_cached(package_name, version) == 0) {
+        // printf("Package not cached: %s : %s\n", package_name, version);
+
         char* package_text = get_package_text(package_name, version);
 
         JSON_Object *package_object = parse_package_json(package_text);
@@ -299,7 +350,11 @@ void install_package(char* package_name, char* version) {
     system(rm_command);
     free(rm_command);
 
-    JSON_Array *all_dependencies = get_deps_from_json(read_package_json(package_name));
+    char* package_json_path = get_package_json_path(package_name);
+    char* package_text = read_package_json(package_json_path);
+    JSON_Array *all_dependencies = get_deps_from_json(package_text);
+    free(package_text);
+    free(package_json_path);
 
     for (int i = 0; i < json_array_get_count(all_dependencies); i++) {
         JSON_Value *dep_value = json_array_get_value(all_dependencies, i);
