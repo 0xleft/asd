@@ -7,6 +7,10 @@
 #include "caching.h"
 #include "globals.h"
 
+#define MAX_THREAD_COUNT 10
+
+int thread_count = 0;
+
 char* get_package_text(char* package_name, char* version) {
     char* url = "https://registry.npmjs.org/";
     char* full_url = malloc(strlen(url) + strlen(package_name) + 1 + strlen(version) + 1);
@@ -233,9 +237,16 @@ JSON_Array *get_installed_deps() {
     return all_dependencies;
 }
 
+char* translate_version(char* version) {
+    if (strcmp(version, "*") == 0) {
+        return "latest";
+    }
+
+
+    return version;
+}
+
 void install_package(char* package_name, char* version) {
-
-
     if (strcmp(version, "*") == 0) {
         version = "latest";
     }
@@ -254,7 +265,7 @@ void install_package(char* package_name, char* version) {
         free(package_text);
 
         if (strcmp(download_link, "") == 0) {
-            // printf("Error getting download link (probably wrong version)\n");
+            printf("Error getting download link (probably wrong version) %s\n", version);
             return;
         }
 
@@ -289,5 +300,17 @@ void install_package(char* package_name, char* version) {
     free(rm_command);
 
     JSON_Array *all_dependencies = get_deps_from_json(read_package_json(package_name));
+
+    for (int i = 0; i < json_array_get_count(all_dependencies); i++) {
+        JSON_Value *dep_value = json_array_get_value(all_dependencies, i);
+        JSON_Object *dep_object = json_value_get_object(dep_value);
+
+        const char *name = json_object_get_string(dep_object, "name");
+        const char *version = json_object_get_string(dep_object, "version");
+
+        printf("Installing dependency: %s : %s\n", name, version);
+
+        install_package(name, version);
+    }
     // print_deps_from_array(all_dependencies);
 }

@@ -9,8 +9,6 @@ int main(int argc, char *argv[]) {
 
     start = clock();
 
-    JSON_Array already_installed = get_installed_deps();
-
     if (argc < 4) {
         printf("Usage: %s [install] [package] [version]\n", argv[0]);
         printf("Usage: %s [install] [package] [*]\n", argv[0]);

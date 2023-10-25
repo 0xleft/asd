@@ -59,8 +59,9 @@ int is_valid_input(const char *input) {
 
     for (size_t i = 0; i < strlen(input); i++) {
         char c = input[i];
-        // check if the character is a valid ASCII character or a number or / \ or .
-        if ((c < 48 || c > 57) && (c < 65 || c > 90) && (c < 97 || c > 122) && c != 47 && c != 92 && c != 46) {
+        // check if the character is a valid lowercase and uppercase character or a number or / \ or . ^ or -
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' &&  c <= '9') || c == '/' || c == '\\' || c == '.' || c == '^' || c == '-') || c == '@') {
+            // printf("Invalid character: %c\n", c);
             return 0;
         }
     }
